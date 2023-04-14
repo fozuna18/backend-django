@@ -1,0 +1,9 @@
+{% extends "base.html" %}
+{% block content %}
+
+    <h1>Usuarios</h1>
+    {% for usuario in usuarios %}
+            <h3>Usuario: {{usuario.nombre}} {{usuario.apellidos}}, {{usuario.email}}</h3>
+    {% endfor %}
+
+{% endblock %}
