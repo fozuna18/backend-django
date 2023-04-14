@@ -1,3 +1,4 @@
+import datetime
 import json
 
 from django.http import JsonResponse
@@ -17,27 +18,32 @@ class Gasolineria(View):
     def dispatch(self, request, *args, **kwargs):
         return super().dispatch(request, *args, **kwargs)
 
+# lista las gasolinerias ligadas al id del usuario enviado por get
     def get(self, request):
         id = request.GET['id']
         gasolinerias = list(Gasolinerias.objects.filter(gasolineriausuario__fk_id_usuario=id).values())
         datos = {
             'status_code': status.HTTP_200_OK,
-            'message': 'Peticion realizada correctamente',
+            'message': 'ok',
             'resultado': gasolinerias
         }
         return JsonResponse(datos)
 
+# Agrega una gasolineria que estará ligada al id del usuario quien tiene iniciado sesion
     def post(self, request):
-        #print(request.body)
+        # print(request.body)
         jd = json.loads(request.body)
-        print(jd)
-        Gasolinerias.objects.create(nombre=jd['nombre'], ubicacion=jd['ubicacion'])
-        GasolineriaUsuario.objects.create(fk_id_gasolineria=Gasolinerias.objects.last(),
-                                          fk_id_usuario=Usuarios.objects.get(id_usuario=jd['id_usuario']))
-        datos = {"status_code": status.HTTP_200_OK,
-                 'message': 'Gasolineria creada correctamente'
-                 }
-        return JsonResponse(datos)
+        # print(jd)
+        if request.method == 'POST':
+            Gasolinerias.objects.create(nombre=jd['nombre'], ubicacion=jd['ubicacion'])
+            GasolineriaUsuario.objects.create(fk_id_gasolineria=Gasolinerias.objects.last(),
+                                              fk_id_usuario=Usuarios.objects.get(id_usuario=jd['id_usuario']))
+
+            Precios.objects.create(magna=0, premium=0, diesel=0, fecha=datetime.datetime.now(), fk_id_gasolineria=Gasolinerias.objects.last())
+            datos = {"status_code": status.HTTP_200_OK,
+                     'message': 'ok'
+                     }
+            return JsonResponse(datos)
 
 
 # Obtiene y edita una gasolineria
@@ -46,6 +52,7 @@ class EditGasolineria(View):
     def dispatch(self, request, *args, **kwargs):
         return super().dispatch(request, *args, **kwargs)
 
+# Edita un registro de una gasolineria con el id enviado de la gasolineria
     def post(self, request):
         jd = json.loads(request.body)
         print(jd)
@@ -67,11 +74,15 @@ class DeleteGasolineria(View):
     def dispatch(self, request, *args, **kwargs):
         return super().dispatch(request, *args, **kwargs)
 
+# Elimina los registros en las tablas donde se tenga el id de la gasolineria
     def post(self, request):
         jd = json.loads(request.body)
-        print(jd)
         gas = Gasolinerias.objects.get(id_gasolineria=jd['id'])
+        gas2 = GasolineriaUsuario.objects.get(fk_id_gasolineria=jd['id'])
+        gas3 = Precios.objects.filter(fk_id_gasolineria=jd['id'])
         gas.delete()
+        gas2.delete()
+        gas3.delete()
         datos = {"status_code": status.HTTP_200_OK,
                  'message': 'ok'
                  }
@@ -105,17 +116,15 @@ class UsuariosViewSet(View):
 # CRUD PRECIOS -------------------------------------------------------------------------------
 class GetPrecios(View):
     def get(self, request):
-        id = request.GET['id']  # id gasolineria
-        # gas = list(Gasolinerias.objects.filter(gasolineriausuario__fk_id_usuario=id).values('id_gasolineria', 'nombre'))
-        # gas1 = Gasolinerias.objects.filter(gasolineriausuario__fk_id_usuario=id).values('id_gasolineria')
-        gas = list(Gasolinerias.objects.filter(id_gasolineria=id).values('id_gasolineria', 'nombre'))
-        price = list(Precios.objects.filter(fk_id_gasolineria=id).values())
-
+        id = request.GET['id']  # id usuario
+        gas = Gasolinerias.objects.filter(gasolineriausuario__fk_id_usuario=id).values('id_gasolineria')
+        gas1 = list(Gasolinerias.objects.filter(gasolineriausuario__fk_id_usuario=id).values('nombre'))
+        price = list(Precios.objects.filter(fk_id_gasolineria__in=gas).all().values('magna', 'premium', 'diesel', 'fk_id_gasolineria'))
         datos = {
             'status_code': status.HTTP_200_OK,
             'message': 'ok',
             'precios': price,
-            'gasolinerias': gas
+            "gasolinerias": gas1
         }
         return JsonResponse(datos)
 

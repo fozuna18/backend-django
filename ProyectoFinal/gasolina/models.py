@@ -10,8 +10,9 @@ class Gasolinerias(models.Model):
 
 class Precios(models.Model):
     id_precio = models.AutoField(primary_key=True, null=False)
-    tipo_gasolina = models.CharField(max_length=45, verbose_name='Tipo Gasolina', null=False)
-    precio = models.FloatField(verbose_name='Precio Gasolina', null=False)
+    magna = models.FloatField(verbose_name='Magna', null=False, default=0)
+    premium = models.FloatField(verbose_name='Premium', null=False, default=0)
+    diesel = models.FloatField(verbose_name='Diesel', null=False, default=0)
     fecha = models.DateTimeField(verbose_name='Fecha de actualización', null=False)
     fk_id_gasolineria = models.ForeignKey(Gasolinerias, on_delete=models.CASCADE)
 
