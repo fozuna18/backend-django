@@ -1,4 +1,7 @@
 from django.db import models
+from django.contrib.auth.models import AbstractUser
+from django.conf import settings
+import uuid
 
 
 # Create your models here.
@@ -17,18 +20,12 @@ class Precios(models.Model):
     fk_id_gasolineria = models.ForeignKey(Gasolinerias, on_delete=models.CASCADE)
 
 
-class TipoUsuarios(models.Model):
-    id_tipoUsuario = models.AutoField(primary_key=True, null=False)
-    descripcion = models.CharField(max_length=45, verbose_name='Descripción', null=False)
-
-
-class Usuarios(models.Model):
-    id_usuario = models.AutoField(primary_key=True, null=False)
-    nombre = models.CharField(max_length=50, verbose_name='Nombre', null=False)
-    apellidos = models.CharField(max_length=100, verbose_name='Apellidos', null=False)
-    email = models.EmailField(verbose_name='Correo', null=False)
-    password = models.CharField(max_length=10, verbose_name='Contraseña', null=False)
-    fk_id_tipoUsuario = models.ForeignKey(TipoUsuarios, on_delete=models.CASCADE)
+class Usuarios(AbstractUser):
+    id_usuario = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
+    email = models.EmailField(verbose_name="Email", unique=True)
+    tipoUsuario_desc = models.CharField(max_length=50, verbose_name="Descripcion de tipo de usuario", null=False, default="cliente")
+    USERNAME_FIELD = 'email'
+    REQUIRED_FIELDS = ['username']
 
 
 class GasolineriaUsuario(models.Model):

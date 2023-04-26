@@ -4,10 +4,13 @@ import json
 from django.http import JsonResponse
 from django.utils.decorators import method_decorator
 from django.views import View
-from gasolina.models import Gasolinerias, Usuarios, Precios, GasolineriaUsuario, TipoUsuarios
+from rest_framework.permissions import IsAuthenticated
+from rest_framework_simplejwt.tokens import RefreshToken
+
+from gasolina.models import Gasolinerias, Usuarios, Precios, GasolineriaUsuario
 from rest_framework import viewsets, status
-from rest_framework.response import Response
 from django.views.decorators.csrf import csrf_exempt
+from django.contrib.auth import authenticate, login, logout
 
 
 # Create your views here.
@@ -90,15 +93,24 @@ class DeleteGasolineria(View):
 
 
 # CRUD USUARIOS----------------------------------------------------------------------------------------
-class UsuariosViewSet(View):
+class GetUsuarios(View):
     def get(self, request):
-        gasolinerias = list(Gasolinerias.objects.filter(GasolineriaUsuario__fk_id_usuario=1).values())
-        datos = {
-            'status_code': status.HTTP_200_OK,
-            'message': 'Peticion realizada correctamente',
-            'resultado': gasolinerias
-        }
-        return JsonResponse(datos)
+        users = list(Usuarios.objects.all().values('id_usuario', 'tipoUsuario_desc', 'first_name', 'last_name', 'email'))
+        print(users)
+        if users is not None:
+            datos = {
+                'status_code': status.HTTP_200_OK,
+                'message': 'Peticion realizada correctamente',
+                'resultado': users
+            }
+            return JsonResponse(datos)
+        else:
+            datos = {
+                'status_code': status.HTTP_404_NOT_FOUND,
+                'message': 'usuarios no encontrados',
+                'resultado': "none"
+            }
+            return JsonResponse(datos)
 
     def post(self):
         datos = {""}
@@ -115,6 +127,10 @@ class UsuariosViewSet(View):
 
 # CRUD PRECIOS -------------------------------------------------------------------------------
 class GetPrecios(View):
+    @method_decorator(csrf_exempt)
+    def dispatch(self, request, *args, **kwargs):
+        return super().dispatch(request, *args, **kwargs)
+
     def get(self, request):
         id = request.GET['id']  # id usuario
         gas = Gasolinerias.objects.filter(gasolineriausuario__fk_id_usuario=id).values('id_gasolineria')
@@ -128,16 +144,34 @@ class GetPrecios(View):
         }
         return JsonResponse(datos)
 
-    def post(self):
-        datos = {""}
-        return JsonResponse(datos)
+# Edita el precio de la gasolinera seleccionada
+    def post(self, request):
+        jd = json.loads(request.body)
+        print(jd)
+        price = Precios.objects.get(fk_id_gasolineria=jd['id'])
+        print(price)
+        if request.method == 'POST':
+            price.magna = jd['tMagna']
+            price.premium = jd['tPremium']
+            price.diesel = jd['tDiesel']
+            price.fecha = datetime.datetime.now()
+            price.save()
+            datos = {"status_code": status.HTTP_200_OK,
+                     'message': 'ok'
+                     }
+            return JsonResponse(datos)
 
-    def put(self):
-        datos = {""}
-        return JsonResponse(datos)
 
-    def delete(self):
-        datos = {""}
+class GetPrecioxGasolinera(View):
+    def get(self, request):
+        id = request.GET['id']  # id gasolineria
+
+        price = list(Precios.objects.filter(fk_id_gasolineria=id).values('magna', 'premium', 'diesel', 'fk_id_gasolineria'))
+        datos = {
+            'status_code': status.HTTP_200_OK,
+            'message': 'ok',
+            'precios': price
+        }
         return JsonResponse(datos)
 
 
@@ -149,21 +183,53 @@ class Acceder(View):
         return super().dispatch(request, *args, **kwargs)
 
     def post(self, request):
-        email = request.POST['email']
-        password = request.POST['password']
+        jd = json.loads(request.body)
+        if request.method == 'POST':
+            user = authenticate(email=jd['email'], password=jd['password'])
+            print(request.body)
+            if user is not None:
+                login(request, user)
+                datos = {
+                    'status_code': status.HTTP_200_OK,
+                    'message': 'true',
+                    'session_id': request.session.session_key,
+                    'resultado': [{
+                        'id': user.id_usuario,
+                        'email': user.email,
+                        'nombre': user.first_name,
+                        'apellidos': user.last_name,
+                        'tipoUsuario': user.tipoUsuario_desc
+                    }]
+                }
+                return JsonResponse(datos)
+            else:
+                datos = {
+                    'status_code': status.HTTP_401_UNAUTHORIZED,
+                    'message': 'Acceso denegado',
+                    'resultado': 'none'
+                }
+                return JsonResponse(datos)
 
-        usuario = list(Usuarios.objects.filter(email=email, password=password).values())
-        print(usuario)
-        if len(usuario) > 0:
-            datos = {
-                'status_code': status.HTTP_200_OK,
-                'message': 'Acceso exitoso',
-                'resultado': usuario
-            }
+    def get(self, request):
+        if request.session.get('_auth_user_id'):
+            return JsonResponse({"isLoggedIn": True})
         else:
-            datos = {
-                'status_code': status.HTTP_401_UNAUTHORIZED,
-                'message': 'Acceso denegado',
-                'resultado': 'none'
-            }
-        return JsonResponse(datos)
+            return JsonResponse({"isLoggedIn": False})
+
+
+class Logout(View):
+    permission_classes = (IsAuthenticated,)
+    @method_decorator(csrf_exempt)
+    def dispatch(self, request, *args, **kwargs):
+        return super().dispatch(request, *args, **kwargs)
+    
+    def post(self, request):
+        try:
+            refresh_token = request.data["refresh_token"]
+            token = RefreshToken(refresh_token)
+            token.blacklist()
+            status.HTTP_205_RESET_CONTENT
+            return JsonResponse({"message": "Logout no exitoso"})
+        except Exception as e:
+            status.HTTP_400_BAD_REQUEST
+            return JsonResponse({"message": "Logout no exitoso"})

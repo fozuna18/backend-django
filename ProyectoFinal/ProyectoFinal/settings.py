@@ -131,8 +131,17 @@ STATIC_URL = 'static/'
 
 DEFAULT_AUTO_FIELD = 'django.db.models.BigAutoField'
 
-LOGIN_URL = reverse_lazy('')
-LOGIN_REDIRECT_URL = reverse_lazy('base')
-LOGOUT_REDIRECT_URL = reverse_lazy('/')
 CORS_ALLOW_ALL_ORIGINS = True
+CORS_ALLOW_CREDENTIALS = True
 
+AUTH_USER_MODEL = 'gasolina.Usuarios'
+
+REST_FRAMEWORK = {
+    'DEFAULT_AUTHENTICATION_CLASSES': (
+        'rest_framework_simplejwt.authentication.JWTAuthentication',
+    )
+}
+
+SIMPLE_JWT = {
+    'USER_ID_FIELD': 'id_usuario'
+}
